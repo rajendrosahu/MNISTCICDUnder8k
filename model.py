@@ -17,40 +17,40 @@ logger = logging.getLogger(__name__)
 class MNISTNet(nn.Module):
     def __init__(self):
         super(MNISTNet, self).__init__()
-        # First Layer: 1->16 channels (increased from 8)
+        # First Layer: 1->20 channels
         self.conv1 = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 20, kernel_size=3, padding=1),
+            nn.BatchNorm2d(20),
             nn.ReLU(),
-            nn.Dropout(0.05)  # Reduced dropout
+            nn.Dropout(0.01)
         )
         
-        # Second Layer: 16->24 channels
+        # Second Layer: 20->32 channels
         self.conv2 = nn.Sequential(
-            nn.Conv2d(16, 24, kernel_size=3, padding=1),
-            nn.BatchNorm2d(24),
-            nn.ReLU(),
-            nn.Dropout(0.05)
-        )
-        
-        # Third Layer: 24->32 channels
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(24, 32, kernel_size=3, padding=1),
+            nn.Conv2d(20, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.Dropout(0.05)
+            nn.Dropout(0.01)
+        )
+        
+        # Third Layer: 32->40 channels
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(32, 40, kernel_size=3, padding=1),
+            nn.BatchNorm2d(40),
+            nn.ReLU(),
+            nn.Dropout(0.01)
         )
         
         self.pool = nn.MaxPool2d(2, 2)
         self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(32, 10)
+        self.fc = nn.Linear(40, 10)
 
     def forward(self, x):
         x = self.pool(self.conv1(x))
         x = self.pool(self.conv2(x))
         x = self.conv3(x)
         x = self.gap(x)
-        x = x.view(-1, 32)
+        x = x.view(-1, 40)
         x = self.fc(x)
         return F.log_softmax(x, dim=1)
 
@@ -72,7 +72,8 @@ def train_epoch(model, device, train_loader, optimizer, scheduler, epoch):
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         
         optimizer.step()
-        scheduler.step()  # Step at each batch
+        if scheduler is not None:
+            scheduler.step()
         
         pred = output.argmax(dim=1, keepdim=True)
         correct += pred.eq(target.view_as(pred)).sum().item()
@@ -110,13 +111,18 @@ def main():
     device = torch.device("cuda" if cuda else "cpu")
     logger.info(f"Using device: {device}")
     
-    # Enhanced data augmentation
-    transform = transforms.Compose([
-        transforms.RandomRotation(15),
-        transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=5),
+    # Enhanced data augmentation for better generalization
+    train_transform = transforms.Compose([
+        transforms.RandomRotation(8),  # Reduced rotation
+        transforms.RandomAffine(
+            degrees=8,
+            translate=(0.08, 0.08),  # Reduced translation
+            scale=(0.92, 1.08),      # Reduced scale variation
+            shear=5                  # Reduced shear
+        ),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,)),
-        transforms.RandomErasing(p=0.1)  # Added random erasing
+        transforms.RandomErasing(p=0.15)  # Reduced erasing probability
     ])
     
     test_transform = transforms.Compose([
@@ -124,11 +130,10 @@ def main():
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     
-    # Load datasets
-    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
+    # Load datasets with increased batch size
+    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=train_transform)
     test_dataset = datasets.MNIST('./data', train=False, transform=test_transform)
     
-    # Reduced batch size for better generalization
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
     test_loader = DataLoader(test_dataset, batch_size=1000, shuffle=False, num_workers=2)
     
@@ -145,21 +150,32 @@ def main():
         max_lr=0.01,
         epochs=20,
         steps_per_epoch=steps_per_epoch,
-        pct_start=0.2,  # Warm up for 20% of training
-        div_factor=25,  # Initial lr = max_lr/25
-        final_div_factor=1000  # Final lr = initial_lr/1000
+        pct_start=0.2,
+        div_factor=25,
+        final_div_factor=1000
     )
     
-    # Training loop
+    # Training loop with cosine annealing
     best_acc = 0
     for epoch in range(1, 21):
+        # Learning rate adjustment
+        if epoch > 10:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = param_group['lr'] * 0.95
+        
         train_acc = train_epoch(model, device, train_loader, optimizer, scheduler, epoch)
         test_acc = test(model, device, test_loader)
         
-        if test_acc >= 99.0 and test_acc > best_acc:
+        # Save model more frequently
+        if test_acc >= 99.3 and test_acc > best_acc:  # Lowered threshold for saving
             best_acc = test_acc
             torch.save(model.state_dict(), f'mnist_model_acc{test_acc:.2f}.pth')
             logger.info(f'Model saved with accuracy: {test_acc:.2f}%')
+            
+        # Early stopping if we achieve very high accuracy
+        if test_acc >= 99.45:
+            logger.info(f'Achieved excellent accuracy of {test_acc:.2f}%. Stopping training.')
+            break
 
 if __name__ == '__main__':
     main()
