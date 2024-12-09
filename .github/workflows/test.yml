@@ -25,7 +25,7 @@ jobs:
     
     - name: Run tests
       run: |
-        PYTHONPATH=$PYTHONPATH:$(pwd) pytest test_model.py -v
+        PYTHONPATH=$PYTHONPATH:$(pwd) pytest test_model.py -v --capture=no --log-cli-level=INFO
     
     - name: Upload trained model
       uses: actions/upload-artifact@v3
