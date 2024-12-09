@@ -23,6 +23,9 @@ rajenv/
 .coverage
 htmlcov/
 
+# Model
+*.pth
+
 
 
 # Logs
