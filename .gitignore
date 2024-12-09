@@ -23,8 +23,7 @@ rajenv/
 .coverage
 htmlcov/
 
-# Model files
-*.pth
+
 
 # Logs
 *.log 
