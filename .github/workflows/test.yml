@@ -21,15 +21,15 @@ jobs:
     
     - name: Train model
       run: |
-        PYTHONPATH=$PYTHONPATH:$(pwd) python train.py
+        PYTHONPATH=$PYTHONPATH:$(pwd) python model.py
     
     - name: Run tests
       run: |
-        PYTHONPATH=$PYTHONPATH:$(pwd) pytest tests/
+        PYTHONPATH=$PYTHONPATH:$(pwd) pytest test_model.py -v
     
     - name: Upload trained model
       uses: actions/upload-artifact@v3
       with:
         name: trained-model
-        path: models/
+        path: ./*.pth
         retention-days: 5
