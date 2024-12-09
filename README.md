@@ -1,6 +1,6 @@
 # MNIST Classification with PyTorch
 
-![ML Pipeline](https://github.com/yourusername/MNISTNEW/actions/workflows/test.yml/badge.svg)
+![ML Pipeline](https://github.com/rajendrosahu/MNISTNEW/actions/workflows/test.yml/badge.svg)
 
 A deep learning project that achieves >99% accuracy on the MNIST dataset using a CNN architecture with less than 20,000 parameters.
 
