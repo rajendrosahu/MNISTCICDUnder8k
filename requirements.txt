@@ -2,4 +2,5 @@ torch>=1.8.0
 torchvision>=0.9.0
 matplotlib>=3.3.4
 numpy>=1.19.2
-torchsummary>=1.5.1 
+torchsummary>=1.5.1
+pytest>=7.0.0
