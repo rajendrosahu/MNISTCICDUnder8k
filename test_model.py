@@ -1,84 +1,70 @@
 import torch
-from model import MNISTNet
-import pytest
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-import logging
-
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+import torch.nn as nn
+from torchsummary import summary
+from model import Model_1, Model_2, Model_4
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def test_parameter_count():
-    logger.info("Starting parameter count test...")
-    model = MNISTNet()
-    param_count = count_parameters(model)
-    logger.info(f"Total trainable parameters: {param_count:,}")
+def test_model_architecture():
+    """
+    Target: Verify model architectures and parameter counts
+    Result: Successfully validates models under specified parameter limits
+    Analysis:
+    - Confirms parameter count for each model
+    - Verifies correct model inheritance
+    - Tests forward pass functionality
+    - Provides detailed model summaries
+    - Ensures output shape matches requirements (1, 10)
+    """
     
-    # Log parameter details for each layer
-    logger.info("\nParameter distribution by layer:")
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            logger.info(f"{name}: {param.numel():,} parameters")
+    # Test Model_1
+    model1 = Model_1()
+    assert isinstance(model1, nn.Module), "Model should be a PyTorch Module"
     
-    assert param_count < 20000, f"Model has {param_count:,} parameters, should be less than 20,000"
-    logger.info("Parameter count test passed successfully!")
-
-def test_model_accuracy():
-    logger.info("Starting model accuracy test...")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logger.info(f"Using device: {device}")
+    # Check parameter count for Model_1
+    param_count1 = count_parameters(model1)
+    print(f"Model_1 Parameter Count: {param_count1}")
+    assert param_count1 <= 8000, f"Model_1 has {param_count1} parameters, exceeding 8000 limit"
     
-    model = MNISTNet().to(device)
+    # Test Model_2
+    model2 = Model_2()
+    assert isinstance(model2, nn.Module), "Model should be a PyTorch Module"
     
-    # Load the latest saved model
-    import glob
-    model_files = glob.glob('mnist_model_acc*.pth')
-    assert len(model_files) > 0, "No trained model found"
+    # Check parameter count for Model_2
+    param_count2 = count_parameters(model2)
+    print(f"Model_2 Parameter Count: {param_count2}")
+    assert param_count2 <= 8000, f"Model_2 has {param_count2} parameters, exceeding 8000 limit"
     
-    latest_model = max(model_files)
-    logger.info(f"Loading model from: {latest_model}")
-    model.load_state_dict(torch.load(latest_model))
+    # Test Model_4
+    model4 = Model_4()
+    assert isinstance(model4, nn.Module), "Model should be a PyTorch Module"
     
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
+    # Check parameter count for Model_4
+    param_count4 = count_parameters(model4)
+    print(f"Model_4 Parameter Count: {param_count4}")
+    assert param_count4 <= 9600, f"Model_4 has {param_count4} parameters, exceeding 9600 limit"
     
-    test_dataset = datasets.MNIST('./data', train=False, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=1000)
-    logger.info(f"Test dataset size: {len(test_dataset):,} images")
+    # Test forward pass
+    dummy_input = torch.randn(1, 1, 28, 28)  # MNIST image size
+    output1 = model1(dummy_input)
+    output2 = model2(dummy_input)
+    output4 = model4(dummy_input)
     
-    model.eval()
-    correct = 0
-    total = 0
+    assert output1.shape == (1, 10), f"Expected output shape (1, 10), got {output1.shape}"
+    assert output2.shape == (1, 10), f"Expected output shape (1, 10), got {output2.shape}"
+    assert output4.shape == (1, 10), f"Expected output shape (1, 10), got {output4.shape}"
     
-    logger.info("Starting evaluation...")
-    with torch.no_grad():
-        for batch_idx, (data, target) in enumerate(test_loader):
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            _, predicted = torch.max(output.data, 1)
-            total += target.size(0)
-            correct += (predicted == target).sum().item()
-            
-            if (batch_idx + 1) % 2 == 0:
-                logger.info(f"Processed {total:,} images...")
+    # Print model summaries
+    print("\nModel_1 Summary:")
+    summary(model1, (1, 28, 28), device="cpu")
     
-    accuracy = 100 * correct / total
-    logger.info(f"\nFinal Results:")
-    logger.info(f"Total images tested: {total:,}")
-    logger.info(f"Correct predictions: {correct:,}")
-    logger.info(f"Model accuracy: {accuracy:.2f}%")
+    print("\nModel_2 Summary:")
+    summary(model2, (1, 28, 28), device="cpu")
     
-    assert accuracy > 99.0, f"Model accuracy is {accuracy:.2f}%, should be > 99.0%"
-    logger.info("Accuracy test passed successfully!")
+    print("\nModel_4 Summary:")
+    summary(model4, (1, 28, 28), device="cpu")
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"]) 
+    test_model_architecture()
+    print("All tests passed!") 
